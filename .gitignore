@@ -1,5 +1,35 @@
+# Virtual environment
 venv/
+.venv/
+
+# Python cache
 __pycache__/
 *.pyc
-data/raw/
+*.pyo
+
+# Jupyter
 .ipynb_checkpoints/
+
+# Environment variables / secrets
+.env
+
+# Model files (optional if large)
+*.pkl
+*.joblib
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Streamlit cache
+.streamlit/secrets.toml
+
+# Large raw data files (optional)
+data/raw/

@@ -3,7 +3,7 @@ from pathlib import Path
 from itertools import product
 
 # This is used to split the data into training and testing sets
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 
 # This is the machine learning model we will use
 from sklearn.ensemble import RandomForestRegressor
@@ -11,28 +11,60 @@ from sklearn.ensemble import RandomForestRegressor
 # This is used to evaluate the model's performance
 # Measures MAE, which is the average absolute difference between predicted and actual values
 from sklearn.metrics import mean_absolute_error
-# -------------------------------------------------------------------------------------------------
 
+# -------------------------------------------------------------------------------------------------
 Base_DIR = Path(__file__).resolve().parents[2]
 file_path = Base_DIR / "data" / "processed" / "clean_prices.csv"
+rate_path = Base_DIR / "data" / "processed" / "interest_rates.csv"
+pop_path = Base_DIR / "data" / "raw" / "population.csv"
 
 df = pd.read_csv(file_path)
+rates = pd.read_csv(rate_path)
+pop = pd.read_csv(pop_path)
 
-# Extract year and month from date, and encode location as categorical variable
+rates["date"] = pd.to_datetime(rates["date"])
+
 df["date"] = pd.to_datetime(df["date"])
+
+# Merge rates first
+df = df.merge(rates, on="date", how="left")
+
+# Create year/month
 df["year"] = df["date"].dt.year
 df["month"] = df["date"].dt.month
 
+# NOW merge population
+df = df.merge(pop, on=["location", "year"], how="left")
+
+# ------------------------------------------------
 # ML models use numerical data, therefore coding the cities as numerical codes
 df["location_code"] = df["location"].astype("category").cat.codes
 
 # -----------------------------------------------
+# Sort before time-based features
+# -----------------------------------------------
+df = df.sort_values(["location", "date"])
 
-# Adding lag(recent prices from the last few months) features: 
+# Population growth feature
+df["pop_growth"] = (
+    df.groupby("location")["population"]
+      .pct_change()
+)
+
+# Group for lag features
 group = df.groupby("location")
 
 df["price_lag_1"] = group["price"].shift(1)  # Price from the previous month
-df["price_3_mean"] = group["price"].shift(1).rolling(window = 3).mean()
+
+df["price_3_mean"] = (
+    group["price"]
+    .shift(1)
+    .groupby(df["location"])
+    .rolling(3)
+    .mean()
+    .reset_index(level=0, drop=True)
+)  # Average price from the last 3 months
+
 df["price_lag_12"] = group["price"].shift(12)  # Price from the same month last year
 
 # Growth rate features:
@@ -46,11 +78,17 @@ features = [
     "year",
     "month",
     "location_code",
+    "interest_rate", # adding the interest rate as a feature
+    "population",    # adding population as a feature
+    "pop_growth",    # adding population growth as a feature
     "price_lag_1",
     "price_3_mean",
     "price_lag_12",
     "price_growth_1",
     "price_growth_12"]
+
+
+df = df.dropna(subset=features + ["price"])
 
 # Split the data into training and testing sets
 # here we use 80% of the data for training and 20% for testing
@@ -124,6 +162,19 @@ print(f"Best Mean Absolute Error: {best_mae}")
 print(f"Best Parameters: n_estimators={best_params[0]}, max_depth={best_params[1]}, min_samples_leaf={best_params[2]}")
 print(f"Test to train ratio: {len(test_df) / len(train_df):.2%}")
 
+# Feature importance
+importance = pd.Series(
+    best_model.feature_importances_,
+    index=features
+).sort_values(ascending=False)
+
+print("\nFeature Importance:")
+print(importance)
+
+# How off are the predictions on average in percentage terms?
+# This is the Mean Absolute Percentage Error (MAPE).
+mape = (abs((Y_test - predictions) / Y_test)).mean() * 100
+print("MAPE:", round(mape,2), "%")
 # -------------------------------------------------------------------------------------------------
 # This version not just uses the date and location, but also incorporates recent price trends
 # (lag features) and growth rates, which can help the model capture more complex

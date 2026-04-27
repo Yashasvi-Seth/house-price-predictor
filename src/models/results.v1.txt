@@ -1,0 +1,8 @@
+Model: RandomForestRegressor
+MAPE: 6.18%
+Best Params:
+n_estimators=200
+max_depth=10
+min_samples_leaf=1
+Features Used:
+prices, lags, population, rates
