@@ -12,6 +12,9 @@ from sklearn.ensemble import RandomForestRegressor
 # Measures MAE, which is the average absolute difference between predicted and actual values
 from sklearn.metrics import mean_absolute_error
 
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parents[2]
+
 # -------------------------------------------------------------------------------------------------
 Base_DIR = Path(__file__).resolve().parents[2]
 file_path = Base_DIR / "data" / "processed" / "clean_prices.csv"
@@ -175,6 +178,18 @@ print(importance)
 # This is the Mean Absolute Percentage Error (MAPE).
 mape = (abs((Y_test - predictions) / Y_test)).mean() * 100
 print("MAPE:", round(mape,2), "%")
+
+
+#------------------------------------------------
+# SAVING THE MODEL
+#------------------------------------------------
+
+# saving the trained model to a file using joblib, which is a library for efficiently
+# serializing Python objects, especially those containing large data like machine
+# learning models.
+import joblib
+joblib.dump(best_model, BASE_DIR / "src" / "models" / "model.pkl")
+
 # -------------------------------------------------------------------------------------------------
 # This version not just uses the date and location, but also incorporates recent price trends
 # (lag features) and growth rates, which can help the model capture more complex
